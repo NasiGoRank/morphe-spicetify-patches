@@ -1,6 +1,6 @@
 {
-  "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.0.0",
+  "NOTE": "Emergency playback recovery preview only; base is main v1.0.0. No Premium popup or Shuffle experimental code.",
+  "version": "1.0.1-safe.1",
   "patches": [
     {
       "name": "Clean sharing links",
@@ -35,7 +35,7 @@
     },
     {
       "name": "Disable audio ad breaks (experimental)",
-      "description": "Requests disabling stream and preroll audio ad slots. Spotify may refuse or ignore the request; does not unlock Premium or guarantee ad-free playback.",
+      "description": "Risky experimental stream/preroll override. OFF by default in the playback-safety hotfix, and explicitly restores ad slots when disabled. Re-enable only after confirming playback works.",
       "default": false,
       "category": null,
       "dependencies": [
