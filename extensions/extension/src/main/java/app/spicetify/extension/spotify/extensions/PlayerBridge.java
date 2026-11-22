@@ -100,6 +100,7 @@ public final class PlayerBridge {
             // unverified native hook. Installation flags keep unselected patches inert.
             if (InstalledPatches.disableAudioAdBreaks()) AudioAdBreaks.onCosmosConnected();
             if (InstalledPatches.forceShuffleOff()) ShuffleOff.onCosmosConnected();
+            if (InstalledPatches.playbackProbe()) PlaybackProbe.onCosmosConnected();
             if (!extensionsInstalled) return;
             Context context = Extensions.appContext();
             if (context == null) {
