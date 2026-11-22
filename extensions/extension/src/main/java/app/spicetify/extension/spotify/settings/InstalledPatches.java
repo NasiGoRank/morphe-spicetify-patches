@@ -44,4 +44,8 @@ public final class InstalledPatches {
     public static boolean forceShuffleOff() {
         return false;
     }
+
+    public static boolean playbackProbe() {
+        return false;
+    }
 }
