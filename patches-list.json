@@ -1,6 +1,6 @@
 {
-  "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.2.0",
+  "NOTE": "Experimental preview source generated manually for NasiGoRank fork testing; official release metadata remains unchanged on upstream main.",
+  "version": "1.2.1-alpha.1",
   "patches": [
     {
       "name": "Clean sharing links",
@@ -10,6 +10,34 @@
       "dependencies": [
         "BytecodePatch"
       ],
+      "compatiblePackages": [
+        {
+          "packageName": "com.spotify.music",
+          "name": "Spotify",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1DB954",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "9.1.80.2221",
+              "versionCodes": {
+                "ARM64_V8A": 145767611
+              },
+              "isExperimental": true,
+              "minSdk": null,
+              "description": "Experimental Android customization patches; runtime compatibility is still being verified."
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Disable audio ad breaks (experimental)",
+      "description": "Requests disabling stream and preroll audio ad slots. Spotify may refuse or ignore the request; does not unlock Premium or guarantee ad-free playback.",
+      "default": false,
+      "category": null,
       "compatiblePackages": [
         {
           "packageName": "com.spotify.music",
@@ -65,8 +93,8 @@
       "options": []
     },
     {
-      "name": "Hide Premium tab",
-      "description": "Hides the Premium navigation tab. Change this in Spicetify settings, then restart Spotify. Does not change your subscription or remove other ads.",
+      "name": "Hide player ad cards",
+      "description": "Hides image brand-ad cards and embedded ad pages in Now Playing. Does not suppress audio ads or other player overlays. Experimental.",
       "default": false,
       "category": null,
       "dependencies": [
@@ -96,8 +124,8 @@
       "options": []
     },
     {
-      "name": "Hide player ad cards",
-      "description": "Hides image brand-ad cards and embedded ad pages in Now Playing. Does not suppress audio ads or other player overlays. Experimental.",
+      "name": "Hide Premium tab",
+      "description": "Hides the Premium navigation tab. Change this in Spicetify settings, then restart Spotify. Does not change your subscription or remove other ads.",
       "default": false,
       "category": null,
       "dependencies": [
@@ -167,6 +195,34 @@
         "BytecodePatch",
         "BytecodePatch"
       ],
+      "compatiblePackages": [
+        {
+          "packageName": "com.spotify.music",
+          "name": "Spotify",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1DB954",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "9.1.80.2221",
+              "versionCodes": {
+                "ARM64_V8A": 145767611
+              },
+              "isExperimental": true,
+              "minSdk": null,
+              "description": "Experimental Android customization patches; runtime compatibility is still being verified."
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Request Shuffle OFF (experimental)",
+      "description": "Asks Spotify to turn shuffle off on startup and context changes. Free accounts may be refused by Spotify; does not unlock Premium.",
+      "default": false,
+      "category": null,
       "compatiblePackages": [
         {
           "packageName": "com.spotify.music",
