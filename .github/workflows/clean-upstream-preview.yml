@@ -1,0 +1,106 @@
+name: Clean Upstream Spicetify Preview
+
+on:
+  push:
+    branches:
+      - rebuild/clean-spicetify-upstream
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+concurrency:
+  group: clean-spicetify-preview
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout clean upstream branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Java 21
+        uses: actions/setup-java@v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Ensure upstream patch code is unchanged
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          files = subprocess.check_output(
+              ["git", "diff", "--name-only", "6741682b28f5c120e7e995537b49705a5d8789ec", "HEAD"],
+              text=True).splitlines()
+          allowed = {"gradle.properties", "patches-bundle.json", "patches-list.json",
+                     "docs/CLEAN_UPSTREAM_REBUILD.md",
+                     ".github/workflows/clean-upstream-preview.yml"}
+          assert set(files) <= allowed, "Unexpected changes relative to official Spicetify upstream: " + repr(files)
+          import json
+          from pathlib import Path
+          v = "1.2.1-upstream.1"
+          meta = json.loads(Path("patches-bundle.json").read_text())
+          patches = json.loads(Path("patches-list.json").read_text())
+          assert meta["version"] == patches["version"] == v
+          assert "version = " + v in Path("gradle.properties").read_text()
+          assert len(patches["patches"]) == 8
+          assert {p["name"] for p in patches["patches"]} == {
+              "Clean sharing links", "Hide Home and Browse ads", "Hide Premium tab",
+              "Hide player ad cards", "Local files from a server",
+              "Pin shortcuts on Home", "Spicetify extensions", "Theme colors"
+          }
+          print("Verified exactly upstream patch code; no local player or ad-slot changes")
+          PY
+
+      - name: Test and compile upstream Android bundle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./gradlew :extensions:extension:testDebugUnitTest \
+            :extensions:extension:lintDebug :patches:test buildAndroid --no-daemon
+
+      - name: Upstream safeguard tests
+        run: |
+          python3 scripts/test-device-check.py
+          python3 scripts/test-verify-artifact.py
+
+      - name: Verify MPP file
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import hashlib
+          f = Path("patches/build/libs/patches-1.2.1-upstream.1.mpp")
+          assert f.is_file() and f.stat().st_size > 10000
+          with ZipFile(f) as z:
+              assert z.testzip() is None
+              assert "classes.dex" in z.namelist() and z.getinfo("classes.dex").file_size > 0
+          print("sha256", hashlib.sha256(f.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload clean upstream bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: spicetify-clean-upstream-mpp
+          path: patches/build/libs/patches-1.2.1-upstream.1.mpp
+          if-no-files-found: error
+
+      - name: Publish isolated prerelease
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="clean-spicetify-v1.2.1-upstream.1"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Preview tag already exists, refusing to overwrite it"
+            exit 1
+          fi
+          gh release create "$tag" "patches/build/libs/patches-1.2.1-upstream.1.mpp" \
+            --target "$GITHUB_SHA" \
+            --title "Clean Spicetify Upstream Rebuild (1.2.1-upstream.1)" \
+            --prerelease \
+            --notes "Clean rebuild of unchanged Spicetify upstream 6741682 for Spotify 9.1.80.2221 ARM64/APKM. NO locally added audio-ad-break disabling, Premium popup blocker, or forced Shuffle experiments. CI verifies source equality, tests, lint, and MPP integrity, NOT device playback. Start with Clean sharing links only on a clean install; see docs/CLEAN_UPSTREAM_REBUILD.md. The upstream code matches the previous ABI-preview codebase, so device behavior may remain the same."
