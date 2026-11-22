@@ -4,6 +4,7 @@ import android.app.Activity;
 import app.spicetify.extension.spotify.extensions.AudioAdBreaks;
 import app.spicetify.extension.spotify.extensions.ShuffleOff;
 import app.spicetify.extension.spotify.extensions.PlaybackProbe;
+import app.spicetify.extension.spotify.extensions.OrderedPlayback;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -274,9 +275,10 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
     private void buildProbe(LinearLayout content) {
         if (!InstalledPatches.playbackProbe()) return;
         TextView help = SpotifyStyle.body(this,
-                "EXPERIMENT: compares two Spotify player commands and reads live Shuffle state. " +
-                "This is not a Desktop identity spoof. Do not enable the older automatic Shuffle OFF " +
-                "patch during this test; it could interfere with the measurements.");
+                "EXPERIMENT: compare RPC responses, and separately try original-order playlist playback. " +
+                "The ordered-playback action RESTARTS the current playlist at song one if accepted. " +
+                "The UI shuffle button may stay ON. This does not spoof a Desktop or unlock Premium. " +
+                "Keep the older automatic Shuffle OFF patch disabled during diagnostics.");
         help.setPadding(SpotifyStyle.dp(this, 16), SpotifyStyle.dp(this, 8),
                 SpotifyStyle.dp(this, 16), SpotifyStyle.dp(this, 8));
         content.addView(help);
@@ -300,16 +302,41 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
                         if (results.isAttachedToWindow()) results.setText(PlaybackProbe.report());
                     }, 6500);
                 });
+        TextView orderedResults = SpotifyStyle.body(this, OrderedPlayback.report());
+        orderedResults.setTextIsSelectable(true);
+        orderedResults.setPadding(SpotifyStyle.dp(this, 16), SpotifyStyle.dp(this, 12),
+                SpotifyStyle.dp(this, 16), SpotifyStyle.dp(this, 12));
+        content.addView(orderedResults);
+
+        SpotifyStyle.actionRow(content, "Play playlist in original order (experimental)",
+                "Different method: explicitly submit tracks in playlist order through Play. " +
+                        "If Spotify accepts, playback RESTARTS at the first song. Free accounts may be refused.",
+                view -> {
+                    OrderedPlayback.run();
+                    orderedResults.setText(OrderedPlayback.report());
+                    Handler handler = new Handler(Looper.getMainLooper());
+                    for (long delay : new long[] {2000L, 5500L, 10000L}) {
+                        handler.postDelayed(() -> {
+                            if (orderedResults.isAttachedToWindow()) {
+                                orderedResults.setText(OrderedPlayback.report());
+                            }
+                        }, delay);
+                    }
+                });
         SpotifyStyle.actionRow(content, "Refresh diagnostic results",
-                "Read the newest player state without sending another command.",
-                view -> results.setText(PlaybackProbe.report()));
+                "Read current player status and the latest ordered-playback result.",
+                view -> {
+                    results.setText(PlaybackProbe.report());
+                    orderedResults.setText(OrderedPlayback.report());
+                });
         SpotifyStyle.actionRow(content, "Copy redacted results",
-                "Copy only player booleans and RPC statuses, never account or device identifiers.",
+                "Copy two redacted reports; excludes tokens, playlist titles and account identifiers.",
                 view -> {
                     ClipboardManager clipboard =
                             (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
                     if (clipboard == null) return;
-                    clipboard.setPrimaryClip(ClipData.newPlainText("Spicetify playback probe", PlaybackProbe.report()));
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Spicetify playback probe",
+                            PlaybackProbe.report() + "\n\n" + OrderedPlayback.report()));
                     Toast.makeText(this, "Playback probe copied", Toast.LENGTH_SHORT).show();
                 });
     }
