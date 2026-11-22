@@ -16,6 +16,7 @@ public final class PatchSettings {
     private static final String HIDE_BRAND_ADS = "hide_brand_ads";
     private static final String HIDE_PLAYER_AD_CARDS = "hide_player_ad_cards";
     private static final String DISABLE_AUDIO_AD_BREAKS = "disable_audio_ad_breaks";
+    private static final String BLOCK_PREMIUM_PROMO_POPUPS = "block_premium_promo_popups";
     private static volatile SharedPreferences preferences;
     private static volatile Context applicationContext;
     private static volatile String startupState;
@@ -117,5 +118,18 @@ public final class PatchSettings {
         SharedPreferences current = preferences;
         if (current == null) throw new IllegalStateException("Spicetify settings are not initialized.");
         current.edit().putBoolean(DISABLE_AUDIO_AD_BREAKS, enabled).apply();
+    }
+
+    /** The popup filter is active only if selected when Morphe patches the APK. */
+    public static boolean blockPremiumPromoPopupsEnabled() {
+        SharedPreferences current = preferences;
+        return InstalledPatches.blockPremiumPromoPopups()
+                && current != null && current.getBoolean(BLOCK_PREMIUM_PROMO_POPUPS, true);
+    }
+
+    public static void setBlockPremiumPromoPopupsEnabled(boolean enabled) {
+        SharedPreferences current = preferences;
+        if (current == null) throw new IllegalStateException("Spicetify settings are not initialized.");
+        current.edit().putBoolean(BLOCK_PREMIUM_PROMO_POPUPS, enabled).apply();
     }
 }
