@@ -2,6 +2,7 @@ package app.spicetify.extension.spotify.extensions;
 
 import android.util.Log;
 import app.spicetify.extension.spotify.settings.InstalledPatches;
+import app.spicetify.extension.spotify.settings.PatchSettings;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -49,6 +50,13 @@ public final class PlaybackProbe {
     /** Starts the two commands from the settings page, never on the Android UI thread. */
     public static void run() {
         if (!InstalledPatches.playbackProbe() || running) return;
+        if (PatchSettings.forceShuffleOffEnabled()) {
+            setOptionsResult = "Auto Shuffle OFF is enabled; turn it off before comparing RPCs";
+            directResult = "not tested";
+            afterSetOptions = "not tested";
+            afterDirect = "not tested";
+            return;
+        }
         long id = RUN.incrementAndGet();
         startingShuffle = snapshotShuffle();
         afterSetOptions = "waiting";
