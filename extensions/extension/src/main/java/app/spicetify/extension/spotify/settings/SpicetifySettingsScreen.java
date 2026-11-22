@@ -1,6 +1,7 @@
 package app.spicetify.extension.spotify.settings;
 
 import android.app.Activity;
+import app.spicetify.extension.spotify.extensions.AudioAdBreaks;
 import android.app.Application;
 import android.app.Dialog;
 import android.os.Bundle;
@@ -168,6 +169,7 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
         List<String> ads = new ArrayList<>();
         if (InstalledPatches.hideBrandAds()) ads.add("Home and Browse");
         if (InstalledPatches.hidePlayerAdCards()) ads.add("Now Playing");
+        if (InstalledPatches.disableAudioAdBreaks()) ads.add("Audio ad breaks (experimental)");
         any |= category(content, "encore_icon_ad_free_24", "Ads", ads, PAGE_ADS);
         List<String> home = new ArrayList<>();
         if (InstalledPatches.hidePremiumTab()) home.add("Premium tab");
@@ -198,6 +200,17 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
     }
 
     private void buildAds(LinearLayout content) {
+        if (InstalledPatches.disableAudioAdBreaks()) {
+            SpotifyStyle.toggleRow(content, "Disable audio ad breaks (experimental)",
+                    "Requests that stream and preroll audio ad slots be disabled. Spotify may ignore the request. "
+                            + "Turning it off requires a restart to restore normal behavior.",
+                    PatchSettings.disableAudioAdBreaksEnabled(), (button, enabled) -> {
+                        PatchSettings.setDisableAudioAdBreaksEnabled(enabled);
+                        AudioAdBreaks.onPreferenceChanged();
+                        if (!enabled) PatchSettings.markRestartRequired();
+                        refreshRestartBar();
+                    });
+        }
         if (InstalledPatches.hideBrandAds()) {
             SpotifyStyle.toggleRow(content, "Hide Home and Browse ads",
                     "Hide image and video brand-ad sections on Home and Browse. Audio ads and upgrade prompts are unchanged.",
