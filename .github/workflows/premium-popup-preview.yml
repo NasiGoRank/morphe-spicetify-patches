@@ -1,0 +1,93 @@
+name: Preview Premium Popup Filter
+
+on:
+  push:
+    branches:
+      - experiment/hide-premium-promo-popups
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+concurrency:
+  group: premium-popup-filter-preview
+  cancel-in-progress: true
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7
+      - name: Set up Java
+        uses: actions/setup-java@v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Validate source metadata
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          v = "1.0.1-alpha.1"
+          assert "version = " + v in Path("gradle.properties").read_text()
+          m = json.loads(Path("patches-bundle.json").read_text())
+          p = json.loads(Path("patches-list.json").read_text())
+          assert m["version"] == p["version"] == v
+          assert m["download_url"].endswith("/patches-" + v + ".mpp")
+          matches = [x for x in p["patches"] if x["name"] == "Block Premium promo popups (experimental)"]
+          assert len(matches) == 1 and matches[0]["default"] is False
+          assert len(p["patches"]) == 10
+          print("Source metadata consistent")
+          PY
+
+      - name: Run targeted popup-filter tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :extensions:extension:testDebugUnitTest --tests app.spicetify.extension.spotify.ads.BlockPromoPopupsTest --no-daemon
+
+      - name: Compile and lint extension, test patcher, build Morphe bundle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :extensions:extension:lintDebug :patches:test buildAndroid --no-daemon
+
+      - name: Inspect MPP
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile, hashlib
+          p = Path("patches/build/libs/patches-1.0.1-alpha.1.mpp")
+          assert p.exists() and p.stat().st_size > 10000, "MPP absent"
+          with zipfile.ZipFile(p) as archive:
+              assert archive.testzip() is None
+              assert "classes.dex" in archive.namelist()
+              assert archive.getinfo("classes.dex").file_size > 0
+          print("Artifact SHA256:", hashlib.sha256(p.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: premium-popup-filter-mpp
+          path: patches/build/libs/patches-1.0.1-alpha.1.mpp
+          if-no-files-found: error
+
+      - name: Publish isolated prerelease
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="premium-popups-v1.0.1-alpha.1"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release already exists; do not replace an earlier preview silently."
+            exit 1
+          fi
+          gh release create "$tag" "patches/build/libs/patches-1.0.1-alpha.1.mpp" \
+            --target "$GITHUB_SHA" \
+            --title "Spotify Android Premium Promo Popup Filter (1.0.1-alpha.1)" \
+            --prerelease \
+            --notes "Opt-in Spotify Android 9.1.80.2221 ARM64/APKM Morphe patch: tries to suppress fullscreen Pendragon promotions by returning Spotify's own no-message fallback. DOES NOT suppress a Premium paywall opened via locked features such as Shuffle OFF; no subscription bypass. Existing main adblock untouched. CI validates targeted tests, lint, patch tests, bundle structure. Not device-tested. See docs/BLOCK_PREMIUM_PROMO_POPUPS.md."
