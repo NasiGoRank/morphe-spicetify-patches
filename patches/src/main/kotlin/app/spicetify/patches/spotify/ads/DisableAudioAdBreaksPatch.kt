@@ -12,8 +12,8 @@ import app.spicetify.patches.spotify.spotifyCompatibility
 @Suppress("unused")
 val disableAudioAdBreaksPatch = bytecodePatch(
     name = "Disable audio ad breaks (experimental)",
-    description = "Requests disabling stream and preroll audio ad slots. Spotify may refuse or ignore the request; " +
-        "does not unlock Premium or guarantee ad-free playback.",
+    description = "RISKY experimental stream/preroll slot override; default OFF for playback safety. " +
+        "The hotfix restores native slots when disabled; avoid enabling if songs auto-skip.",
     default = false,
 ) {
     compatibleWith(spotifyCompatibility)
