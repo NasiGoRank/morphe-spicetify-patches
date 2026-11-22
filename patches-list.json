@@ -1,6 +1,6 @@
 {
-  "NOTE": "Experimental preview source generated manually for NasiGoRank fork testing; official release metadata remains unchanged on upstream main.",
-  "version": "1.2.1-alpha.1",
+  "NOTE": "Isolated preview source for privacy-safe Desktop identity and Spotify Shuffle protocol experiment; existing Ad patches unchanged.",
+  "version": "1.2.1-alpha.2",
   "patches": [
     {
       "name": "Clean sharing links",
@@ -195,6 +195,34 @@
         "BytecodePatch",
         "BytecodePatch"
       ],
+      "compatiblePackages": [
+        {
+          "packageName": "com.spotify.music",
+          "name": "Spotify",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1DB954",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "9.1.80.2221",
+              "versionCodes": {
+                "ARM64_V8A": 145767611
+              },
+              "isExperimental": true,
+              "minSdk": null,
+              "description": "Experimental Android customization patches; runtime compatibility is still being verified."
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Playback identity and Shuffle probe (experimental)",
+      "description": "Records live shuffle state and mft/force_shuffle, then manually compares SetOptions and SetShufflingContext results. Does not spoof Desktop or unlock Premium.",
+      "default": false,
+      "category": null,
       "compatiblePackages": [
         {
           "packageName": "com.spotify.music",
