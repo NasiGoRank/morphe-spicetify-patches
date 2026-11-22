@@ -13,6 +13,16 @@ public class AudioAdBreaksTest {
     }
 
     @Test
+    public void restorationEnablesBothNativeSlots() {
+        assertArrayEquals(new byte[] {
+            0x0A, 0x06, 's', 't', 'r', 'e', 'a', 'm', 0x10, 0x01
+        }, AudioAdBreaks.slotEnabledRequest("stream", true));
+        assertArrayEquals(new byte[] {
+            0x0A, 0x07, 'p', 'r', 'e', 'r', 'o', 'l', 'l', 0x10, 0x01
+        }, AudioAdBreaks.slotEnabledRequest("preroll", true));
+    }
+
+    @Test
     public void prerollSlotGetsExplicitDisabledBoolean() {
         assertArrayEquals(new byte[] {
             0x0A, 0x07, 'p', 'r', 'e', 'r', 'o', 'l', 'l', 0x10, 0x00
