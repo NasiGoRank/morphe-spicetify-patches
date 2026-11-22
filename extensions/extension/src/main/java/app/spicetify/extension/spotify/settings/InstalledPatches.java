@@ -35,4 +35,9 @@ public final class InstalledPatches {
     public static boolean extensions() {
         return false;
     }
+
+    /** Opt-in experimental audio ad slot control (not an entitlement bypass). */
+    public static boolean disableAudioAdBreaks() {
+        return false;
+    }
 }
