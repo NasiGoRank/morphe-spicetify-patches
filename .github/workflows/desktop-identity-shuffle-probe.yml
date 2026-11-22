@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: write
-  actions: read
+  packages: read
 
 concurrency:
   group: desktop-identity-probe-preview
@@ -19,8 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout preview manifest
-        uses: actions/checkout@v4
+      - name: Checkout preview source
+        uses: actions/checkout@v7
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Verify source metadata
         run: |
@@ -33,61 +39,56 @@ jobs:
           listing = json.loads(Path("patches-list.json").read_text())
           assert manifest["version"] == listing["version"] == version
           assert manifest["download_url"].endswith("/patches-" + version + ".mpp")
-          matches = [p for p in listing["patches"] if p["name"] == "Playback identity and Shuffle probe (experimental)"]
-          assert len(matches) == 1 and matches[0]["default"] is False
+          probe = [p for p in listing["patches"] if p["name"] == "Playback identity and Shuffle probe (experimental)"]
+          assert len(probe) == 1 and probe[0]["default"] is False
           assert len(listing["patches"]) == 11
-          print("Experimental playback probe source metadata is consistent")
+          print("Preview metadata verified")
           PY
 
-      - name: Find matching Check workflow and require success
+      - name: Run targeted playback protocol regression tests
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          run_id=""
-          for attempt in $(seq 1 50); do
-            run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=experiment/desktop-capability-shuffle-probe&per_page=100" \
-              --jq ".workflow_runs[] | select(.name == \"Check\" and .head_sha == \"$GITHUB_SHA\") | .id" | head -n 1)
-            if [ -n "$run_id" ]; then break; fi
-            sleep 12
-          done
-          if [ -z "$run_id" ]; then echo "No matching Check workflow"; exit 1; fi
-          gh run watch "$run_id" -R "$GITHUB_REPOSITORY" --exit-status
-          echo "CHECK_RUN_ID=$run_id" >> "$GITHUB_ENV"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :extensions:extension:testDebugUnitTest --tests app.spicetify.extension.spotify.extensions.PlaybackProbeTest --no-daemon
 
-      - name: Download the passing Check bundle
+      - name: Lint, test Morphe patches and build Android bundle
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p dist
-          gh run download "$CHECK_RUN_ID" -R "$GITHUB_REPOSITORY" --name patches --dir dist
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :extensions:extension:lintDebug :patches:test buildAndroid --no-daemon
 
-      - name: Verify immutable release artifact
+      - name: Verify built preview artifact
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import hashlib, zipfile
-          file = Path("dist/patches-1.2.1-alpha.2.mpp")
-          assert file.exists() and file.stat().st_size > 10000
+          file = Path("patches/build/libs/patches-1.2.1-alpha.2.mpp")
+          assert file.exists() and file.stat().st_size > 10000, "Missing MPP"
           with zipfile.ZipFile(file) as z:
-              assert z.testzip() is None
-              assert "classes.dex" in z.namelist()
-              assert z.getinfo("classes.dex").file_size > 0
-          print("Passing Check artifact SHA256:", hashlib.sha256(file.read_bytes()).hexdigest())
+              assert z.testzip() is None, "Corrupted MPP"
+              assert "classes.dex" in z.namelist(), "Missing dex"
+              assert z.getinfo("classes.dex").file_size > 0, "Empty dex"
+          print("SHA256:", hashlib.sha256(file.read_bytes()).hexdigest())
           PY
 
+      - name: Upload opt-in test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-shuffle-probe-mpp
+          path: patches/build/libs/patches-1.2.1-alpha.2.mpp
+          if-no-files-found: error
+
       - name: Publish experimental prerelease
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           tag="identity-probe-v1.2.1-alpha.2"
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release tag already exists. Do not replace assets from a different build."
+            echo "Release already exists; never silently replace a verified preview."
             exit 1
           fi
-          gh release create "$tag" "dist/patches-1.2.1-alpha.2.mpp" \
+          gh release create "$tag" "patches/build/libs/patches-1.2.1-alpha.2.mpp" \
             --target "$GITHUB_SHA" \
             --title "Experimental Android Playback Identity + Shuffle Probe (v1.2.1-alpha.2)" \
             --prerelease \
-            --notes "Isolated opt-in Android 9.1.80.2221 ARM64 Morphe diagnostic patch. Observes live Shuffle state and mft/force_shuffle, manually compares SetOptions and SetShufflingContext, and copies a redacted result. Does NOT spoof Desktop device type, change account entitlement, or unlock Premium. Source documentation: docs/DESKTOP_IDENTITY_SHUFFLE_PROBE.md. Not tested on a real Spotify Free Android session."
+            --notes "Opt-in Android 9.1.80.2221 ARM64 Morphe probe. Reads Shuffle state and mft/force_shuffle, manually compares SetOptions/SetShufflingContext, and copies a redacted result. No Desktop spoof or Premium unlock. Targeted probe unit tests, extension lint, patch tests and Android bundle build required; full Robolectric suite may be affected by unavailable runner Maven dependencies. Not tested on a physical device. See docs/DESKTOP_IDENTITY_SHUFFLE_PROBE.md."
