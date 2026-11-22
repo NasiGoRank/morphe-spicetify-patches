@@ -96,6 +96,9 @@ public final class PlayerBridge {
             Context application = application(service);
             if (application != null) Extensions.setAppContext(application);
             attach(CosmosRouter.reflective(service));
+            // The optional audio-ad patch reuses this already verified Cosmos hook.
+            // No Shuffle patch or diagnostics are installed on main.
+            if (InstalledPatches.disableAudioAdBreaks()) AudioAdBreaks.onCosmosConnected();
             if (!extensionsInstalled) return;
             Context context = Extensions.appContext();
             if (context == null) {
