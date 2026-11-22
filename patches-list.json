@@ -1,11 +1,42 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "patches": [
     {
       "name": "Clean sharing links",
       "description": "Removes sharing identifiers and marketing parameters from open.spotify.com links. Keeps playback timestamps, context, and other parameters.",
       "default": true,
+      "category": null,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "com.spotify.music",
+          "name": "Spotify",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1DB954",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "9.1.80.2221",
+              "versionCodes": {
+                "ARM64_V8A": 145767611
+              },
+              "isExperimental": true,
+              "minSdk": null,
+              "description": "Experimental Android customization patches; runtime compatibility is still being verified."
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
+    {
+      "name": "Disable audio ad breaks (experimental)",
+      "description": "Requests disabling stream and preroll audio ad slots. Spotify may refuse or ignore the request; does not unlock Premium or guarantee ad-free playback.",
+      "default": false,
       "category": null,
       "dependencies": [
         "BytecodePatch"
