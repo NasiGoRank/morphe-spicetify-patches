@@ -1,6 +1,5 @@
 {
-  "NOTE": "Isolated preview source for privacy-safe Desktop identity and Spotify Shuffle protocol experiment; existing Ad patches unchanged.",
-  "version": "1.2.1-alpha.2",
+  "version": "1.2.1-alpha.3",
   "patches": [
     {
       "name": "Clean sharing links",
@@ -220,7 +219,7 @@
     },
     {
       "name": "Playback identity and Shuffle probe (experimental)",
-      "description": "Records live shuffle state and mft/force_shuffle, then manually compares SetOptions and SetShufflingContext results. Does not spoof Desktop or unlock Premium.",
+      "description": "Compare player Shuffle RPC responses; optionally request playback of a playlist/album in original track order using ContextPlayer/Play. Spotify may still refuse. No Desktop spoof.",
       "default": false,
       "category": null,
       "compatiblePackages": [
