@@ -1,6 +1,8 @@
 package app.spicetify.extension.spotify.settings;
 
 import android.app.Activity;
+import app.spicetify.extension.spotify.extensions.AudioAdBreaks;
+import app.spicetify.extension.spotify.extensions.ShuffleOff;
 import android.app.Application;
 import android.app.Dialog;
 import android.os.Bundle;
@@ -168,10 +170,12 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
         List<String> ads = new ArrayList<>();
         if (InstalledPatches.hideBrandAds()) ads.add("Home and Browse");
         if (InstalledPatches.hidePlayerAdCards()) ads.add("Now Playing");
+        if (InstalledPatches.disableAudioAdBreaks()) ads.add("Audio ad breaks (experimental)");
         any |= category(content, "encore_icon_ad_free_24", "Ads", ads, PAGE_ADS);
         List<String> home = new ArrayList<>();
         if (InstalledPatches.hidePremiumTab()) home.add("Premium tab");
         if (InstalledPatches.homePins()) home.add("Home shortcuts");
+        if (InstalledPatches.forceShuffleOff()) home.add("Shuffle OFF (experimental)");
         any |= category(content, "encore_icon_home_24", "Home and navigation", home, PAGE_HOME);
         any |= category(content, "encore_icon_share_android_24", "Sharing",
                 InstalledPatches.cleanSharing() ? List.of("Clean sharing links") : List.of(), PAGE_SHARING);
@@ -198,6 +202,17 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
     }
 
     private void buildAds(LinearLayout content) {
+        if (InstalledPatches.disableAudioAdBreaks()) {
+            SpotifyStyle.toggleRow(content, "Disable audio ad breaks (experimental)",
+                    "Requests that stream and preroll ad slots be disabled. Spotify may ignore the request. "
+                            + "Turning it off requires a restart to restore normal behavior.",
+                    PatchSettings.disableAudioAdBreaksEnabled(), (button, enabled) -> {
+                        PatchSettings.setDisableAudioAdBreaksEnabled(enabled);
+                        AudioAdBreaks.onPreferenceChanged();
+                        if (!enabled) PatchSettings.markRestartRequired();
+                        refreshRestartBar();
+                    });
+        }
         if (InstalledPatches.hideBrandAds()) {
             SpotifyStyle.toggleRow(content, "Hide Home and Browse ads",
                     "Hide image and video brand-ad sections on Home and Browse. Audio ads and upgrade prompts are unchanged.",
@@ -217,6 +232,15 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
     }
 
     private void buildHome(LinearLayout content) {
+        if (InstalledPatches.forceShuffleOff()) {
+            SpotifyStyle.toggleRow(content, "Request Shuffle OFF (experimental)",
+                    "Asks Spotify to disable context shuffle on startup and playlist changes. "
+                            + "Free accounts may refuse the request. This does not unlock Premium.",
+                    PatchSettings.forceShuffleOffEnabled(), (button, enabled) -> {
+                        PatchSettings.setForceShuffleOffEnabled(enabled);
+                        ShuffleOff.onPreferenceChanged();
+                    });
+        }
         if (InstalledPatches.hidePremiumTab()) {
             SpotifyStyle.toggleRow(content, "Hide Premium tab",
                     "Hide the Premium tab in navigation. Your subscription and other ads are unchanged.",
