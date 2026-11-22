@@ -202,8 +202,8 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
     private void buildAds(LinearLayout content) {
         if (InstalledPatches.disableAudioAdBreaks()) {
             SpotifyStyle.toggleRow(content, "Disable audio ad breaks (experimental)",
-                    "Requests that stream and preroll audio ad slots be disabled. Spotify may ignore the request. "
-                            + "Turning it off requires a restart to restore normal behavior.",
+                    "Risky experimental audio-slot override. OFF by default in the playback-safety preview; " +
+                            "switching OFF restores native stream/preroll slots. Leave OFF if songs skip endlessly.",
                     PatchSettings.disableAudioAdBreaksEnabled(), (button, enabled) -> {
                         PatchSettings.setDisableAudioAdBreaksEnabled(enabled);
                         AudioAdBreaks.onPreferenceChanged();
