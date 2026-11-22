@@ -1,0 +1,81 @@
+name: Experimental Morphe 2.x ABI bundle
+
+on:
+  push:
+    branches:
+      - fix/publish-settings-abi-morphe2
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  test-build-and-publish:
+    name: Test, build and publish preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source with semantic ABI digest fix
+        uses: actions/checkout@v4
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Verify pinned source fix exists
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          src = Path("patches/src/main/java/app/spicetify/patches/spotify/settings/NativeSettingsAbi.java").read_text()
+          assert "describe(definition).getBytes(StandardCharsets.UTF_8)" in src, "Content-based ABI digest is missing"
+          assert "DexPool" not in src, "Old serialized DEX ABI digest is still present"
+          print("Content-based ABI verification is included in this revision.")
+          PY
+
+      - name: Unit tests and Android patch bundle build
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :extensions:extension:testDebugUnitTest :extensions:extension:lintDebug :patches:test buildAndroid --no-daemon
+
+      - name: Verify Android-ready MPP bundle
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import hashlib
+          bundles = sorted(Path("patches/build/libs").glob("patches-*.mpp"))
+          assert len(bundles) == 1, f"Expected exactly one patch bundle, got: {bundles}"
+          bundle = bundles[0]
+          assert bundle.stat().st_size > 10000, f"Suspiciously small MPP bundle: {bundle.stat().st_size}"
+          with ZipFile(bundle) as z:
+              assert z.testzip() is None, "MPP ZIP integrity test failed"
+              assert "classes.dex" in z.namelist(), "Android classes.dex is missing from MPP bundle"
+              assert z.getinfo("classes.dex").file_size > 0, "Empty classes.dex"
+          print(f"Bundle: {bundle}")
+          print(f"SHA256: {hashlib.sha256(bundle.read_bytes()).hexdigest()}")
+          PY
+
+      - name: Upload bundle as Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spicetify-morphe2-abi-preview
+          path: patches/build/libs/patches-*.mpp
+          if-no-files-found: error
+
+      - name: Publish experimental prerelease
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bundle="$(find patches/build/libs -maxdepth 1 -name 'patches-*.mpp' -print -quit)"
+          test -n "$bundle"
+          tag="abi-preview-${GITHUB_SHA:0:12}"
+          gh release create "$tag" "$bundle" \
+            --target "$GITHUB_SHA" \
+            --title "Experimental Morphe 2.x ABI bundle ($tag)" \
+            --prerelease \
+            --notes "Unreleased Spicetify main with content-based NativeSettingsAbi digest (upstream PR #16). Targets Spotify 9.1.80.2221 arm64-v8a, version code 145767611. CI tests and Android bundle integrity checks must pass before upload. This has NOT been verified on Morphe Patcher 2.5.0 or an Android 16 device; use at your own risk. Not an official Spicetify release."
