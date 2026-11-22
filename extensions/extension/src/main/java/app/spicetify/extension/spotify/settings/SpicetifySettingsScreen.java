@@ -1,6 +1,7 @@
 package app.spicetify.extension.spotify.settings;
 
 import android.app.Activity;
+import app.spicetify.extension.spotify.ads.BlockPromoPopups;
 import app.spicetify.extension.spotify.extensions.AudioAdBreaks;
 import android.app.Application;
 import android.app.Dialog;
@@ -170,6 +171,7 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
         if (InstalledPatches.hideBrandAds()) ads.add("Home and Browse");
         if (InstalledPatches.hidePlayerAdCards()) ads.add("Now Playing");
         if (InstalledPatches.disableAudioAdBreaks()) ads.add("Audio ad breaks (experimental)");
+        if (InstalledPatches.blockPremiumPromoPopups()) ads.add("Premium promo popups (experimental)");
         any |= category(content, "encore_icon_ad_free_24", "Ads", ads, PAGE_ADS);
         List<String> home = new ArrayList<>();
         if (InstalledPatches.hidePremiumTab()) home.add("Premium tab");
@@ -200,6 +202,20 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
     }
 
     private void buildAds(LinearLayout content) {
+        if (InstalledPatches.blockPremiumPromoPopups()) {
+            SpotifyStyle.toggleRow(content, "Block Premium promo popups (experimental)",
+                    "Attempts to suppress fullscreen promotional messages delivered by Spotify's " +
+                            "Pendragon service. Does not suppress purchase popups shown when tapping locked " +
+                            "features such as Shuffle OFF. No Premium features are unlocked.",
+                    PatchSettings.blockPremiumPromoPopupsEnabled(), (button, enabled) -> {
+                        PatchSettings.setBlockPremiumPromoPopupsEnabled(enabled);
+                    });
+            SpotifyStyle.actionRow(content, "Promo blocker status",
+                    "Displays how many promo fetches were replaced since Spotify started.",
+                    view -> android.widget.Toast.makeText(this,
+                            "Filtered promo fetch requests: " + BlockPromoPopups.suppressedRequestCount(),
+                            android.widget.Toast.LENGTH_LONG).show());
+        }
         if (InstalledPatches.disableAudioAdBreaks()) {
             SpotifyStyle.toggleRow(content, "Disable audio ad breaks (experimental)",
                     "Requests that stream and preroll audio ad slots be disabled. Spotify may ignore the request. "
