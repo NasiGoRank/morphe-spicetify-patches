@@ -96,6 +96,10 @@ public final class PlayerBridge {
             Context application = application(service);
             if (application != null) Extensions.setAppContext(application);
             attach(CosmosRouter.reflective(service));
+            // Both options share the already verified Cosmos bridge, avoiding a second
+            // unverified native hook. Installation flags keep unselected patches inert.
+            if (InstalledPatches.disableAudioAdBreaks()) AudioAdBreaks.onCosmosConnected();
+            if (InstalledPatches.forceShuffleOff()) ShuffleOff.onCosmosConnected();
             if (!extensionsInstalled) return;
             Context context = Extensions.appContext();
             if (context == null) {
