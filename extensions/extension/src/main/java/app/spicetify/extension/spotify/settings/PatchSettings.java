@@ -16,6 +16,7 @@ public final class PatchSettings {
     private static final String HIDE_BRAND_ADS = "hide_brand_ads";
     private static final String HIDE_PLAYER_AD_CARDS = "hide_player_ad_cards";
     private static final String DISABLE_AUDIO_AD_BREAKS = "disable_audio_ad_breaks";
+    private static final String AUDIO_AD_SAFETY_RESET = "audio_ad_breaks_safety_reset_v1";
     private static volatile SharedPreferences preferences;
     private static volatile Context applicationContext;
     private static volatile String startupState;
@@ -27,6 +28,16 @@ public final class PatchSettings {
         if (InstalledPatches.serverFiles() && ServerProcess.skipApplication(context)) return;
         applicationContext = context.getApplicationContext();
         preferences = applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE);
+        // One-time reset of the risky ad-slot override. Existing installations of
+        // v1.0.0 defaulted this preference ON when the patch was selected.
+        // Make the recovery preview explicitly opt-in, without deleting other settings.
+        if (InstalledPatches.disableAudioAdBreaks()
+                && !preferences.getBoolean(AUDIO_AD_SAFETY_RESET, false)) {
+            preferences.edit()
+                    .putBoolean(DISABLE_AUDIO_AD_BREAKS, false)
+                    .putBoolean(AUDIO_AD_SAFETY_RESET, true)
+                    .apply();
+        }
         if (InstalledPatches.homePins()) HomePins.initialize(context);
         startupState = restartState();
         restartMarked = false;
@@ -110,7 +121,7 @@ public final class PatchSettings {
     public static boolean disableAudioAdBreaksEnabled() {
         SharedPreferences current = preferences;
         return InstalledPatches.disableAudioAdBreaks()
-                && current != null && current.getBoolean(DISABLE_AUDIO_AD_BREAKS, true);
+                && current != null && current.getBoolean(DISABLE_AUDIO_AD_BREAKS, false);
     }
 
     public static void setDisableAudioAdBreaksEnabled(boolean enabled) {
