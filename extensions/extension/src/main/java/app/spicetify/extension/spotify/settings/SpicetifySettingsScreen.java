@@ -3,6 +3,11 @@ package app.spicetify.extension.spotify.settings;
 import android.app.Activity;
 import app.spicetify.extension.spotify.extensions.AudioAdBreaks;
 import app.spicetify.extension.spotify.extensions.ShuffleOff;
+import app.spicetify.extension.spotify.extensions.PlaybackProbe;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.widget.Toast;
 import android.app.Application;
 import android.app.Dialog;
 import android.os.Bundle;
@@ -29,6 +34,7 @@ import java.util.List;
 public final class SpicetifySettingsScreen extends ContextThemeWrapper {
     public static final String PAGE_ADS = "ads";
     public static final String PAGE_HOME = "home";
+    public static final String PAGE_PROBE = "playback_probe";
     public static final String PAGE_SHARING = "sharing";
     public static final String PAGE_APPEARANCE = "appearance";
     public static final String PAGE_SERVER = "server";
@@ -74,6 +80,9 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
         } else if (PAGE_HOME.equals(page)) {
             title = "Home and navigation";
             buildHome(content);
+        } else if (PAGE_PROBE.equals(page)) {
+            title = "Playback diagnostics";
+            buildProbe(content);
         } else if (PAGE_SHARING.equals(page)) {
             title = "Sharing";
             buildSharing(content);
@@ -176,6 +185,7 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
         if (InstalledPatches.hidePremiumTab()) home.add("Premium tab");
         if (InstalledPatches.homePins()) home.add("Home shortcuts");
         if (InstalledPatches.forceShuffleOff()) home.add("Shuffle OFF (experimental)");
+        if (InstalledPatches.playbackProbe()) home.add("Playback diagnostic probe");
         any |= category(content, "encore_icon_home_24", "Home and navigation", home, PAGE_HOME);
         any |= category(content, "encore_icon_share_android_24", "Sharing",
                 InstalledPatches.cleanSharing() ? List.of("Clean sharing links") : List.of(), PAGE_SHARING);
@@ -249,7 +259,59 @@ public final class SpicetifySettingsScreen extends ContextThemeWrapper {
                         refreshRestartBar();
                     });
         }
+        if (InstalledPatches.playbackProbe()) {
+            SpotifyStyle.actionRow(content, "Playback diagnostics (experimental)",
+                    "Test Shuffle protocol commands and inspect whether the player reports forced shuffle.",
+                    view -> openPage(PAGE_PROBE));
+        }
         if (InstalledPatches.homePins()) HomePinsSettings.build(this, content);
+    }
+
+    /**
+     * Diagnostic page keeps playback identity unchanged. Only the manual probe button
+     * requests Shuffle OFF, so opening this page cannot silently modify playback.
+     */
+    private void buildProbe(LinearLayout content) {
+        if (!InstalledPatches.playbackProbe()) return;
+        TextView help = SpotifyStyle.body(this,
+                "EXPERIMENT: compares two Spotify player commands and reads live Shuffle state. " +
+                "This is not a Desktop identity spoof. Do not enable the older automatic Shuffle OFF " +
+                "patch during this test; it could interfere with the measurements.");
+        help.setPadding(SpotifyStyle.dp(this, 16), SpotifyStyle.dp(this, 8),
+                SpotifyStyle.dp(this, 16), SpotifyStyle.dp(this, 8));
+        content.addView(help);
+
+        TextView results = SpotifyStyle.body(this, PlaybackProbe.report());
+        results.setTextIsSelectable(true);
+        results.setPadding(SpotifyStyle.dp(this, 16), SpotifyStyle.dp(this, 12),
+                SpotifyStyle.dp(this, 16), SpotifyStyle.dp(this, 12));
+        content.addView(results);
+
+        SpotifyStyle.actionRow(content, "Run Shuffle protocol test",
+                "Compare SetOptions and SetShufflingContext. Playback may change if Spotify accepts OFF.",
+                view -> {
+                    PlaybackProbe.run();
+                    results.setText(PlaybackProbe.report());
+                    Handler handler = new Handler(Looper.getMainLooper());
+                    handler.postDelayed(() -> {
+                        if (results.isAttachedToWindow()) results.setText(PlaybackProbe.report());
+                    }, 2500);
+                    handler.postDelayed(() -> {
+                        if (results.isAttachedToWindow()) results.setText(PlaybackProbe.report());
+                    }, 6500);
+                });
+        SpotifyStyle.actionRow(content, "Refresh diagnostic results",
+                "Read the newest player state without sending another command.",
+                view -> results.setText(PlaybackProbe.report()));
+        SpotifyStyle.actionRow(content, "Copy redacted results",
+                "Copy only player booleans and RPC statuses, never account or device identifiers.",
+                view -> {
+                    ClipboardManager clipboard =
+                            (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (clipboard == null) return;
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Spicetify playback probe", PlaybackProbe.report()));
+                    Toast.makeText(this, "Playback probe copied", Toast.LENGTH_SHORT).show();
+                });
     }
 
     private void buildSharing(LinearLayout content) {
