@@ -1,7 +1,38 @@
 {
-  "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.0.0",
+  "NOTE": "Experimental fork preview metadata, NOT an upstream stable release. Only Spotify 9.1.80.2221 ARM64/APKM.",
+  "version": "1.0.1-alpha.1",
   "patches": [
+    {
+      "name": "Block Premium promo popups (experimental)",
+      "description": "Attempts to hide fullscreen Pendragon promotional popups using Spotify's no-message fallback. Does not suppress purchase dialogs triggered by locked features.",
+      "default": false,
+      "category": null,
+      "dependencies": [
+        "BytecodePatch"
+      ],
+      "compatiblePackages": [
+        {
+          "packageName": "com.spotify.music",
+          "name": "Spotify",
+          "description": null,
+          "apkFileType": "APKM",
+          "appIconColor": "#1DB954",
+          "signatures": null,
+          "targets": [
+            {
+              "version": "9.1.80.2221",
+              "versionCodes": {
+                "ARM64_V8A": 145767611
+              },
+              "isExperimental": true,
+              "minSdk": null,
+              "description": "Experimental Android customization patches; runtime compatibility is still being verified."
+            }
+          ]
+        }
+      ],
+      "options": []
+    },
     {
       "name": "Clean sharing links",
       "description": "Removes sharing identifiers and marketing parameters from open.spotify.com links. Keeps playback timestamps, context, and other parameters.",
@@ -96,8 +127,8 @@
       "options": []
     },
     {
-      "name": "Hide Premium tab",
-      "description": "Hides the Premium navigation tab. Change this in Spicetify settings, then restart Spotify. Does not change your subscription or remove other ads.",
+      "name": "Hide player ad cards",
+      "description": "Hides image brand-ad cards and embedded ad pages in Now Playing. Does not suppress audio ads or other player overlays. Experimental.",
       "default": false,
       "category": null,
       "dependencies": [
@@ -127,8 +158,8 @@
       "options": []
     },
     {
-      "name": "Hide player ad cards",
-      "description": "Hides image brand-ad cards and embedded ad pages in Now Playing. Does not suppress audio ads or other player overlays. Experimental.",
+      "name": "Hide Premium tab",
+      "description": "Hides the Premium navigation tab. Change this in Spicetify settings, then restart Spotify. Does not change your subscription or remove other ads.",
       "default": false,
       "category": null,
       "dependencies": [
