@@ -1,0 +1,89 @@
+name: Playback Safety Recovery Preview
+
+on:
+  push:
+    branches:
+      - hotfix/audio-ad-playback-safety
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+concurrency:
+  group: audio-playback-safety-preview
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Validate recovery preview manifest
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          version = "1.0.1-safe.1"
+          assert "version = " + version in Path("gradle.properties").read_text()
+          m = json.loads(Path("patches-bundle.json").read_text())
+          p = json.loads(Path("patches-list.json").read_text())
+          assert m["version"] == p["version"] == version
+          assert m["download_url"].endswith("/patches-" + version + ".mpp")
+          assert len(p["patches"]) == 9
+          assert all("Shuffle OFF" not in x["name"] and "Block Premium promo popups" not in x["name"] for x in p["patches"])
+          print("Playback safety preview metadata verified")
+          PY
+
+      - name: Test explicit restore and suppression protobuf
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :extensions:extension:testDebugUnitTest --tests app.spicetify.extension.spotify.extensions.AudioAdBreaksTest --no-daemon
+
+      - name: Lint extension, test patcher, build Android Morphe bundle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :extensions:extension:lintDebug :patches:test buildAndroid --no-daemon
+
+      - name: Verify MPP integrity
+        run: |
+          python3 - <<'PY'
+          import zipfile,hashlib
+          from pathlib import Path
+          p=Path("patches/build/libs/patches-1.0.1-safe.1.mpp")
+          assert p.is_file() and p.stat().st_size>10000
+          with zipfile.ZipFile(p) as z:
+              assert z.testzip() is None
+              assert "classes.dex" in z.namelist()
+              assert z.getinfo("classes.dex").file_size > 0
+          print("Verified bundle SHA256:",hashlib.sha256(p.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload recovery preview bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: playback-safety-recovery-mpp
+          path: patches/build/libs/patches-1.0.1-safe.1.mpp
+          if-no-files-found: error
+
+      - name: Publish isolated recovery preview
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="audio-playback-safety-v1.0.1-safe.1"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to replace the earlier bundle"
+            exit 1
+          fi
+          gh release create "$tag" "patches/build/libs/patches-1.0.1-safe.1.mpp" \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Emergency Android Playback Safety Preview (1.0.1-safe.1)" \
+            --notes "EXPERIMENTAL Spotify Android 9.1.80.2221 ARM64/APKM playback recovery. Turns the audio ad slot override OFF on first launch and explicitly requests restoration of native stream/preroll slots. Does NOT prove audio ad patch causes repeated track skips; other causes remain possible. Does not include the Premium popup filter or Shuffle experiments. Source and test plan: docs/AUDIO_PLAYBACK_SAFETY.md."
