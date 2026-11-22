@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/NasiGoRank/morphe-spicetify-patches/compare/v1.0.0...v1.0.1) (2026-11-22)
+
+### 🐛 Bug Fixes
+
+* publish ABI-compatible Morphe source from this fork ([#2](https://github.com/NasiGoRank/morphe-spicetify-patches/issues/2)) ([8f45295](https://github.com/NasiGoRank/morphe-spicetify-patches/commit/8f452955e85ed69314b1a66bd9259d27bff803ab))
+
 ## 1.0.0 (2026-11-22)
 
 ### 🐛 Bug Fixes
