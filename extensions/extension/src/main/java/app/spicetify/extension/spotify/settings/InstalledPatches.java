@@ -40,4 +40,9 @@ public final class InstalledPatches {
     public static boolean disableAudioAdBreaks() {
         return false;
     }
+
+    /** Opt-in popup marketing filter, independent of the Premium tab. */
+    public static boolean blockPremiumPromoPopups() {
+        return false;
+    }
 }
