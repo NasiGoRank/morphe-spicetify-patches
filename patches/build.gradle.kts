@@ -2,12 +2,12 @@ group = "app.spicetify"
 
 patches {
     about {
-        name = "Spicetify Android patches"
+        name = "Spicetify Android patches (NasiGoRank preview)"
         description = "Spotify Android customization patches compatible with Morphe"
-        source = "https://github.com/spicetify/morphe-patches"
+        source = "https://github.com/NasiGoRank/morphe-spicetify-patches"
         author = "Spicetify"
         contact = "na"
-        website = "https://github.com/spicetify/morphe-patches"
+        website = "https://github.com/NasiGoRank/morphe-spicetify-patches"
         license = "GPLv3"
     }
 }
