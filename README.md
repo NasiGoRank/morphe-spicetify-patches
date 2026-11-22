@@ -8,7 +8,7 @@ This repository publishes patch source and bundles, not Spotify APKs.
 > These patches target Spotify 9.1.80.2221, ARM64. Other Spotify versions are
 > not supported.
 
-[**➕ Add Spicetify to Morphe**](https://morphe.software/add-source?github=spicetify/morphe-patches/tree/main)
+[**➕ Add Spicetify to Morphe**](https://morphe.software/add-source?github=NasiGoRank/morphe-spicetify-patches/tree/main)
 
 Open this link on Android with Morphe Manager installed to add the stable
 source. Releases are published from `main`.
@@ -65,10 +65,38 @@ Pixel 8 with a 35,000-track Jellyfin library.
 
 <!-- PATCHES_END -->
 
+## Morphe 2.x settings ABI patch failure
+
+If Morphe reports `Spotify settings ABI changed: Lcom/spotify/music/SpotifyApplication;`
+while using **Spicetify Android patches 1.2.0**, it is loading the older
+**upstream release (2026-10-08)**. That release predates
+[the ABI digest fix (PR #16)](https://github.com/spicetify/morphe-patches/pull/16).
+The fork's source includes the fix, which hashes the *semantic DEX class
+description* instead of version-dependent DEX writer bytes.
+
+1. In **Morphe Manager > Sources**, disable/remove the old
+   `spicetify/morphe-patches` source. Do not mix its patches with this fork's bundle.
+2. Add this fork using the button above or the raw source URL below. Update the
+   source and verify that the selected bundle comes from **NasiGoRank**, not the
+   upstream **Spicetify Android patches 1.2.0**.
+3. Select an **original, unmodified** Spotify **9.1.80.2221 ARM64**
+   APK/APKM (version code `145767611`). Do not repatch an already patched APK.
+4. For your initial test, select **only Clean sharing links**. Confirm the app
+   launches, logs in, loads playlists, plays tracks, advances and seeks normally.
+   Add other patches one at a time afterward. Keep **Spicetify extensions**
+   (including Shuffle+) and the experimental audio-ad patch disabled initially.
+
+If the error still occurs *with the fork bundle*, check the selected APK's
+SHA-256 against the verified upstream testing fixture
+`f4826f9a9148b15d4a7adeb10a01603a6eca2ff29d16c9d59a320439b4ff17da`.
+A different hash is not necessarily malicious, but it is not the exact fixture
+verified by upstream PR #16. Patcher 2.5.0 and physical-device playback have
+not yet been verified for this fork.
+
 ## Install
 
-Releases are listed on the [releases page](https://github.com/spicetify/morphe-patches/releases).
-Version 1.0.0 was patched with Morphe Manager and tested on a Pixel 8.
+Releases for this fork are on the [releases page](https://github.com/NasiGoRank/morphe-spicetify-patches/releases).
+This fork's ABI-compatible build has not yet been validated for audible playback on Morphe Patcher 2.5.0; a successful bundle build does not guarantee playback.
 
 A patched APK uses a different signing certificate from stock Spotify. Installing it with
 the same package name requires removing stock Spotify first, which removes
@@ -83,10 +111,10 @@ instead of adding it again. To add it manually and patch Spotify:
 2. Paste the following source URL, then select **Add**.
 
    ```text
-   https://raw.githubusercontent.com/spicetify/morphe-patches/refs/heads/main/patches-bundle.json
+   https://raw.githubusercontent.com/NasiGoRank/morphe-spicetify-patches/refs/heads/main/patches-bundle.json
    ```
 
-   If your source uses the former `dev` URL, switch to this `main` URL.
+   If you previously installed `spicetify/morphe-patches` as a Morphe source, disable that source before selecting patches from this fork. The official 1.2.0 bundle predates the ABI fix, and selecting it again reproduces the error.
 
 3. Expand **Spicetify Android patches** and enable **Experimental app versions**.
 4. Return to the app list. Spotify appears with the target version
@@ -180,7 +208,7 @@ Desktop-signed APK and a Manager-signed APK can use different keys.
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, and release steps.
 
 This project is independent of Spotify and the Morphe project. Its repository
-slug is `morphe-patches`; its display name is Spicetify Android patches.
+fork slug is `morphe-spicetify-patches`; its upstream project is `spicetify/morphe-patches`.
 
 ## License
 

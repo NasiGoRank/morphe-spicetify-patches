@@ -44,6 +44,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew :extensions:extension:testDebugUnitTest :extensions:extension:lintDebug :patches:test buildAndroid --no-daemon
 
+      - name: Verify fork source and ABI regression guard
+        run: python3 scripts/test-fork-source.py
+
       - name: Test device check safeguards
         run: python3 scripts/test-device-check.py
 
