@@ -35,4 +35,13 @@ public final class InstalledPatches {
     public static boolean extensions() {
         return false;
     }
+
+    // Optional experimental patches. These remain false in an unmodified bundle.
+    public static boolean disableAudioAdBreaks() {
+        return false;
+    }
+
+    public static boolean forceShuffleOff() {
+        return false;
+    }
 }
