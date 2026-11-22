@@ -44,6 +44,10 @@ final class Esperanto {
         List<String> artistUris = new ArrayList<>();
         boolean advertisement;
         boolean episode;
+        /** Null until the native player reports its ContextPlayerOptions. */
+        Boolean shuffleEnabled;
+        /** A known suppression provider; no other suppression values are recorded. */
+        boolean forceShuffleSuppression;
     }
 
     /** {@code ContextPlayerState{2 context_uri, 7 track: ProvidedTrack{1 context_track}}}; everything else is skipped. */
@@ -58,11 +62,32 @@ final class Esperanto {
                 case 7:
                     readProvidedTrack(reader.message(), state);
                     break;
+                case 17:
+                    readPlayerOptions(reader.message(), state);
+                    break;
+                case 19:
+                    if (reader.type() == 2 && "mft/force_shuffle".equals(reader.string())) {
+                        state.forceShuffleSuppression = true;
+                    } else if (reader.type() != 2) {
+                        reader.skip();
+                    }
+                    break;
                 default:
                     reader.skip();
             }
         }
         return state;
+    }
+
+    /** ContextPlayerOptions{1 bool shuffling_context}; no track or account metadata is retained. */
+    private static void readPlayerOptions(Wire.Reader options, PlayerState state) throws IOException {
+        while (options.next()) {
+            if (options.field() == 1 && options.type() == 0) {
+                state.shuffleEnabled = options.varint() != 0;
+            } else {
+                options.skip();
+            }
+        }
     }
 
     private static void readProvidedTrack(Wire.Reader providedTrack, PlayerState state) throws IOException {
