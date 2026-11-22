@@ -1,0 +1,94 @@
+name: Preview Ordered Playback Experiment
+
+on:
+  push:
+    branches:
+      - experiment/ordered-playback-probe
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: read
+
+concurrency:
+  group: ordered-playback-preview
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout experiment source
+        uses: actions/checkout@v7
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v6.0.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Validate preview metadata
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          version = "1.2.1-alpha.3"
+          assert "version = " + version in Path("gradle.properties").read_text()
+          m = json.loads(Path("patches-bundle.json").read_text())
+          p = json.loads(Path("patches-list.json").read_text())
+          assert m["version"] == p["version"] == version
+          assert m["download_url"].endswith("/patches-" + version + ".mpp")
+          matches = [x for x in p["patches"] if x["name"] == "Playback identity and Shuffle probe (experimental)"]
+          assert len(matches) == 1 and matches[0]["default"] is False
+          assert len(p["patches"]) == 11
+          print("Metadata valid")
+          PY
+
+      - name: Test ordered playback and existing protocol probe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :extensions:extension:testDebugUnitTest --tests app.spicetify.extension.spotify.extensions.PlaybackProbeTest --tests app.spicetify.extension.spotify.extensions.OrderedPlaybackTest --no-daemon
+
+      - name: Run lint, patch tests and build Android bundle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :extensions:extension:lintDebug :patches:test buildAndroid --no-daemon
+
+      - name: Verify release file integrity
+        run: |
+          python3 - <<'PY'
+          import hashlib,zipfile
+          from pathlib import Path
+          file = Path("patches/build/libs/patches-1.2.1-alpha.3.mpp")
+          assert file.exists() and file.stat().st_size > 10000
+          with zipfile.ZipFile(file) as z:
+              assert z.testzip() is None
+              assert "classes.dex" in z.namelist()
+              assert z.getinfo("classes.dex").file_size > 0
+          print("Verified SHA256:",hashlib.sha256(file.read_bytes()).hexdigest())
+          PY
+
+      - name: Archive opt-in test bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ordered-playback-preview-mpp
+          path: patches/build/libs/patches-1.2.1-alpha.3.mpp
+          if-no-files-found: error
+
+      - name: Publish isolated experimental prerelease
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="ordered-playback-v1.2.1-alpha.3"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release already exists; do not silently replace a published build."
+            exit 1
+          fi
+          gh release create "$tag" "patches/build/libs/patches-1.2.1-alpha.3.mpp" \
+            --target "$GITHUB_SHA" \
+            --title "Experimental Spotify Android Original-Order Playback Probe (v1.2.1-alpha.3)" \
+            --prerelease \
+            --notes "Isolated Android 9.1.80.2221 ARM64/APKM playback experiment. Adds a manual Play request containing ordered playlist tracks instead of SetOptions/SetShufflingContext. If accepted it RESTARTS the current playlist. Spotify Free may reject it as FORBIDDEN; no subscription bypass or Desktop impersonation is claimed. Targeted unit tests, lint, patch tests, build and MPP integrity were checked. Not runtime-tested on Android. See docs/ORDERED_PLAYBACK_PROBE.md."
