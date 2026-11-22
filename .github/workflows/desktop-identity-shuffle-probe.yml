@@ -1,0 +1,93 @@
+name: Preview Desktop Identity and Shuffle Probe
+
+on:
+  push:
+    branches:
+      - experiment/desktop-capability-shuffle-probe
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: desktop-identity-probe-preview
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout preview manifest
+        uses: actions/checkout@v4
+
+      - name: Verify source metadata
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          version = "1.2.1-alpha.2"
+          assert "version = " + version in Path("gradle.properties").read_text()
+          manifest = json.loads(Path("patches-bundle.json").read_text())
+          listing = json.loads(Path("patches-list.json").read_text())
+          assert manifest["version"] == listing["version"] == version
+          assert manifest["download_url"].endswith("/patches-" + version + ".mpp")
+          matches = [p for p in listing["patches"] if p["name"] == "Playback identity and Shuffle probe (experimental)"]
+          assert len(matches) == 1 and matches[0]["default"] is False
+          assert len(listing["patches"]) == 11
+          print("Experimental playback probe source metadata is consistent")
+          PY
+
+      - name: Find matching Check workflow and require success
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id=""
+          for attempt in $(seq 1 50); do
+            run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=experiment/desktop-capability-shuffle-probe&per_page=100" \
+              --jq ".workflow_runs[] | select(.name == \"Check\" and .head_sha == \"$GITHUB_SHA\") | .id" | head -n 1)
+            if [ -n "$run_id" ]; then break; fi
+            sleep 12
+          done
+          if [ -z "$run_id" ]; then echo "No matching Check workflow"; exit 1; fi
+          gh run watch "$run_id" -R "$GITHUB_REPOSITORY" --exit-status
+          echo "CHECK_RUN_ID=$run_id" >> "$GITHUB_ENV"
+
+      - name: Download the passing Check bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          gh run download "$CHECK_RUN_ID" -R "$GITHUB_REPOSITORY" --name patches --dir dist
+
+      - name: Verify immutable release artifact
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, zipfile
+          file = Path("dist/patches-1.2.1-alpha.2.mpp")
+          assert file.exists() and file.stat().st_size > 10000
+          with zipfile.ZipFile(file) as z:
+              assert z.testzip() is None
+              assert "classes.dex" in z.namelist()
+              assert z.getinfo("classes.dex").file_size > 0
+          print("Passing Check artifact SHA256:", hashlib.sha256(file.read_bytes()).hexdigest())
+          PY
+
+      - name: Publish experimental prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="identity-probe-v1.2.1-alpha.2"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release tag already exists. Do not replace assets from a different build."
+            exit 1
+          fi
+          gh release create "$tag" "dist/patches-1.2.1-alpha.2.mpp" \
+            --target "$GITHUB_SHA" \
+            --title "Experimental Android Playback Identity + Shuffle Probe (v1.2.1-alpha.2)" \
+            --prerelease \
+            --notes "Isolated opt-in Android 9.1.80.2221 ARM64 Morphe diagnostic patch. Observes live Shuffle state and mft/force_shuffle, manually compares SetOptions and SetShufflingContext, and copies a redacted result. Does NOT spoof Desktop device type, change account entitlement, or unlock Premium. Source documentation: docs/DESKTOP_IDENTITY_SHUFFLE_PROBE.md. Not tested on a real Spotify Free Android session."
