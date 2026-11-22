@@ -15,6 +15,8 @@ public final class PatchSettings {
     private static final String HIDE_PREMIUM_TAB = "hide_premium_tab";
     private static final String HIDE_BRAND_ADS = "hide_brand_ads";
     private static final String HIDE_PLAYER_AD_CARDS = "hide_player_ad_cards";
+    private static final String DISABLE_AUDIO_AD_BREAKS = "disable_audio_ad_breaks";
+    private static final String FORCE_SHUFFLE_OFF = "force_shuffle_off";
     private static volatile SharedPreferences preferences;
     private static volatile Context applicationContext;
     private static volatile String startupState;
@@ -92,6 +94,32 @@ public final class PatchSettings {
         SharedPreferences current = preferences;
         if (current == null) throw new IllegalStateException("Spicetify settings are not initialized.");
         current.edit().putBoolean(HIDE_BRAND_ADS, enabled).apply();
+    }
+
+    /** Enabled by default only when the user explicitly installs the experimental patch. */
+    public static boolean disableAudioAdBreaksEnabled() {
+        SharedPreferences current = preferences;
+        return InstalledPatches.disableAudioAdBreaks()
+                && current != null && current.getBoolean(DISABLE_AUDIO_AD_BREAKS, true);
+    }
+
+    public static void setDisableAudioAdBreaksEnabled(boolean enabled) {
+        SharedPreferences current = preferences;
+        if (current == null) throw new IllegalStateException("Spicetify settings are not initialized.");
+        current.edit().putBoolean(DISABLE_AUDIO_AD_BREAKS, enabled).apply();
+    }
+
+    /** Requests shuffle off; Spotify may deny this for Free accounts. */
+    public static boolean forceShuffleOffEnabled() {
+        SharedPreferences current = preferences;
+        return InstalledPatches.forceShuffleOff()
+                && current != null && current.getBoolean(FORCE_SHUFFLE_OFF, true);
+    }
+
+    public static void setForceShuffleOffEnabled(boolean enabled) {
+        SharedPreferences current = preferences;
+        if (current == null) throw new IllegalStateException("Spicetify settings are not initialized.");
+        current.edit().putBoolean(FORCE_SHUFFLE_OFF, enabled).apply();
     }
 
     public static boolean hidePlayerAdCardsEnabled() {
