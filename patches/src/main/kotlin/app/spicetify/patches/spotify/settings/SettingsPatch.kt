@@ -27,8 +27,16 @@ internal val settingsPatch = bytecodePatch {
         for (type in NativeSettingsAbi.TYPES) {
             val definition = classDefByOrNull(type)
                 ?: throw PatchException("Spotify settings ABI changed: missing $type")
-            if (NativeSettingsAbi.digest(definition) != snapshot.getProperty(type)) {
-                throw PatchException("Spotify settings ABI changed: $type. Use the verified Spotify 9.1.80.2221 APK.")
+            val expectedDigest = snapshot.getProperty(type)
+                ?: throw PatchException("Spicetify bundle is missing the settings ABI snapshot for $type. Rebuild this patch source.")
+            val actualDigest = NativeSettingsAbi.digest(definition)
+            if (actualDigest != expectedDigest) {
+                throw PatchException(
+                    "Spotify settings ABI changed: $type " +
+                        "(expected ${expectedDigest.take(12)}, got ${actualDigest.take(12)}). " +
+                        "Use the original Spotify 9.1.80.2221 ARM64 APK and a patched bundle " +
+                        "from NasiGoRank/morphe-spicetify-patches, not upstream v1.2.0."
+                )
             }
         }
 
